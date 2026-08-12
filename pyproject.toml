@@ -1,0 +1,29 @@
+[project]
+name = "pipeline-tdd"
+version = "0.1.0"
+description = "Meridian Bikes dock-event pipeline, built test-first"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "mypy>=1.9",
+    "testcontainers[postgres]>=4,<5",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src", "tools"]
+# No `testpaths` on purpose: there is no `tests/` directory yet. You create it in Task 1.
+norecursedirs = ["given", "alembic", "tools", ".venv"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_missing_imports = true
