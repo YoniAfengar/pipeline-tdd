@@ -26,6 +26,9 @@ def parse_event(raw: RawEvent) -> DockEvent:
     if raw["bikes_available"] < 0:
         raise MalformedRow("bikes_available cannot be negative")
 
+    if "docks_free" not in raw:
+        raise MalformedRow("docks_free is missing")
+
     return DockEvent(
         event_id=raw["event_id"],
         station_id=raw["station_id"],
