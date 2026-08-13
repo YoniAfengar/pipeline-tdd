@@ -62,3 +62,15 @@ def test_parse_event_unparseable_occurred_at() -> None:
 
     with pytest.raises(MalformedRow):
         parse_event(raw)
+
+
+def test_parse_event_missing_bikes_available() -> None:
+    raw = {
+        "event_id": "E-000001",
+        "station_id": "ST-0007",
+        "occurred_at": "2026-06-01T06:00:00+00:00",
+        "docks_free": 6,
+    }
+
+    with pytest.raises(MalformedRow):
+        parse_event(raw)
