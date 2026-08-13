@@ -11,14 +11,19 @@ def parse_event(raw: RawEvent) -> DockEvent:
     """One raw JSON object -> one `DockEvent`, or raise `MalformedRow`."""
     if "event_id" not in raw:
         raise MalformedRow("event_id is missing")
-    
+
     if "occurred_at" not in raw:
         raise MalformedRow("occurred_at is missing")
+
+    try:
+        occurred_at = datetime.fromisoformat(raw["occurred_at"])
+    except ValueError as exc:
+        raise MalformedRow("occurred_at is not a timestamp") from exc
 
     return DockEvent(
         event_id=raw["event_id"],
         station_id=raw["station_id"],
-        occurred_at=datetime.fromisoformat(raw["occurred_at"]),
+        occurred_at=occurred_at,
         bikes_available=raw["bikes_available"],
         docks_free=raw["docks_free"],
     )
