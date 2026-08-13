@@ -11,6 +11,9 @@ def parse_event(raw: RawEvent) -> DockEvent:
     """One raw JSON object -> one `DockEvent`, or raise `MalformedRow`."""
     if "event_id" not in raw:
         raise MalformedRow("event_id is missing")
+    
+    if "occurred_at" not in raw:
+        raise MalformedRow("occurred_at is missing")
 
     return DockEvent(
         event_id=raw["event_id"],
