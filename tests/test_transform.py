@@ -1,5 +1,8 @@
 from datetime import datetime
 
+import pytest
+
+from pipeline.errors import MalformedRow
 from pipeline.model import DockEvent
 from pipeline.transform import parse_event
 
@@ -22,3 +25,15 @@ def test_parse_event_happy_path() -> None:
     )
 
     assert parse_event(raw) == expected
+
+
+def test_parse_event_missing_event_id() -> None:
+    raw = {
+        "station_id": "ST-0007",
+        "occurred_at": "2026-06-01T06:00:00+00:00",
+        "bikes_available": 14,
+        "docks_free": 6,
+    }
+
+    with pytest.raises(MalformedRow):
+        parse_event(raw)
