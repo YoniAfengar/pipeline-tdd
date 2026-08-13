@@ -20,6 +20,9 @@ def parse_event(raw: RawEvent) -> DockEvent:
     except ValueError as exc:
         raise MalformedRow("occurred_at is not a timestamp") from exc
 
+    if "bikes_available" not in raw:
+        raise MalformedRow("bikes_available is missing")
+
     return DockEvent(
         event_id=raw["event_id"],
         station_id=raw["station_id"],
