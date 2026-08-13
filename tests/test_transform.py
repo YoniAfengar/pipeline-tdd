@@ -100,6 +100,7 @@ def test_parse_event_missing_docks_free() -> None:
     with pytest.raises(MalformedRow):
         parse_event(raw)
 
+
 def test_parse_event_negative_docks_free() -> None:
     raw = {
         "event_id": "E-000001",
@@ -111,3 +112,17 @@ def test_parse_event_negative_docks_free() -> None:
 
     with pytest.raises(MalformedRow):
         parse_event(raw)
+
+
+def test_parse_event_zero_bikes_is_valid() -> None:
+    raw = {
+        "event_id": "E-000003",
+        "station_id": "ST-0112",
+        "occurred_at": "2026-06-01T06:15:00+00:00",
+        "bikes_available": 0,
+        "docks_free": 30,
+    }
+
+    event = parse_event(raw)
+
+    assert event.bikes_available == 0
