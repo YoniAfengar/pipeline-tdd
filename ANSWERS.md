@@ -9,6 +9,9 @@ Name one thing the rollback strategy cannot test that `TRUNCATE` can.
 (When you reach Task 6 and this stops being hypothetical, come back and add a sentence about what
 actually happened.)
 
+
+Rollback isolation cannot properly test code that commits its own transaction. Once the code under test commits, the fixture’s rollback can no longer undo those changes. The committed rows can leak into the next test and break test isolation. A TRUNCATE-based cleanup can remove those rows even after they have been committed.
+
 ## Task 5 — reference data in the migration, or in a fixture?
 
 You could have put the `INSERT`s for `stations.csv` inside migration 1, and then the seed would need no

@@ -21,3 +21,43 @@ def test_migrations_build_schema(postgres_url: str) -> None:
     assert "stations" in tables
     assert "dock_events" in tables
     assert "dock_events_station_time_idx" in indexes
+
+
+def test_transaction_isolation_first(db_conn: psycopg.Connection) -> None:
+    db_conn.execute(
+        "INSERT INTO stations (station_id, name) VALUES (%s, %s)",
+        ("ST-TEST", "Test Station"),
+    )
+    db_conn.execute(
+        """
+        INSERT INTO dock_events (
+            event_id,
+            station_id,
+            occurred_at,
+            bikes_available,
+            docks_free
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        ("E-SAME", "ST-TEST", "2026-06-01T06:00:00+00:00", 5, 10),
+    )
+
+
+def test_transaction_isolation_second(db_conn: psycopg.Connection) -> None:
+    db_conn.execute(
+        "INSERT INTO stations (station_id, name) VALUES (%s, %s)",
+        ("ST-TEST", "Test Station"),
+    )
+    db_conn.execute(
+        """
+        INSERT INTO dock_events (
+            event_id,
+            station_id,
+            occurred_at,
+            bikes_available,
+            docks_free
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        ("E-SAME", "ST-TEST", "2026-06-01T06:00:00+00:00", 5, 10),
+    )

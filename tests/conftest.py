@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 
-import pytest
 import psycopg
+import pytest
 from alembic import command
 from alembic.config import Config
 from testcontainers.community.postgres import PostgresContainer
@@ -20,3 +20,15 @@ def postgres_url() -> Iterator[str]:
         command.upgrade(cfg, "head")
 
         yield url
+
+
+@pytest.fixture
+def db_conn(postgres_url: str) -> Iterator[psycopg.Connection]:
+    conn = psycopg.connect(postgres_url)
+    conn.execute("BEGIN")
+
+    try:
+        yield conn
+    finally:
+        conn.rollback()
+        conn.close()
