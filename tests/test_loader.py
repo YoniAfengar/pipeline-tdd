@@ -138,3 +138,33 @@ def test_unknown_station_is_refused_by_database(
         exc_info.value.__cause__,
         psycopg.errors.ForeignKeyViolation,
     )
+
+
+def test_load_does_not_commit(
+    db_conn: psycopg.Connection,
+    postgres_url: str,
+) -> None:
+    events = [
+        DockEvent(
+            event_id="E-5001",
+            station_id="ST-0007",
+            occurred_at=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+            bikes_available=5,
+            docks_free=10,
+        ),
+    ]
+
+    loaded = load(db_conn, events)
+
+    with psycopg.connect(postgres_url) as second_conn:
+        row = second_conn.execute(
+            """
+            SELECT event_id
+            FROM dock_events
+            WHERE event_id = %s
+            """,
+            ("E-5001",),
+        ).fetchone()
+
+    assert loaded == 1
+    assert row is None
