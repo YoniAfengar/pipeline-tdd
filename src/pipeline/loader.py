@@ -10,4 +10,28 @@ from pipeline.model import DockEvent
 
 def load(conn: psycopg.Connection, events: Iterable[DockEvent]) -> int:
     """Insert `events`; return how many rows the database did not already have."""
-    raise NotImplementedError
+    loaded = 0
+
+    for event in events:
+        conn.execute(
+            """
+            INSERT INTO dock_events (
+                event_id,
+                station_id,
+                occurred_at,
+                bikes_available,
+                docks_free
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                event.event_id,
+                event.station_id,
+                event.occurred_at,
+                event.bikes_available,
+                event.docks_free,
+            ),
+        )
+        loaded += 1
+
+    return loaded
