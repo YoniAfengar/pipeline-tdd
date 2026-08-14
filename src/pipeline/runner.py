@@ -6,6 +6,7 @@ from pathlib import Path
 
 import psycopg
 
+from pipeline.errors import MalformedRow
 from pipeline.loader import load
 from pipeline.model import DockEvent, Report
 from pipeline.transform import parse_event
@@ -15,13 +16,21 @@ def run(drop_dir: Path, dsn: str) -> Report:
     """Read every `*.jsonl` in `drop_dir`, transform, load, and report what happened."""
     events: list[DockEvent] = []
     read = 0
+    rejected = 0
 
     for path in sorted(drop_dir.glob("*.jsonl")):
         with path.open() as file:
             for line in file:
                 read += 1
                 raw = json.loads(line)
-                events.append(parse_event(raw))
+
+                try:
+                    event = parse_event(raw)
+                except MalformedRow:
+                    rejected += 1
+                    continue
+
+                events.append(event)
 
     with psycopg.connect(dsn) as conn:
         loaded = load(conn, events)
@@ -30,5 +39,5 @@ def run(drop_dir: Path, dsn: str) -> Report:
     return Report(
         read=read,
         loaded=loaded,
-        rejected=0,
+        rejected=rejected,
     )
