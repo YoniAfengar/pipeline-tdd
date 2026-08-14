@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+
+import pytest
+import psycopg
+from alembic import command
+from alembic.config import Config
+from testcontainers.postgres import PostgresContainer
+
+
+@pytest.fixture(scope="session")
+def postgres_url() -> Iterator[str]:
+    with PostgresContainer("postgres:16-alpine", driver=None) as postgres:
+        url = postgres.get_connection_url()
+        os.environ["DATABASE_URL"] = url
+
+        cfg = Config("alembic.ini")
+        command.upgrade(cfg, "head")
+
+        yield url
