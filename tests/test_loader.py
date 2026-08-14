@@ -116,3 +116,25 @@ def test_unknown_station_rejects_entire_batch(
     ).fetchall()
 
     assert rows == []
+
+
+def test_unknown_station_is_refused_by_database(
+    db_conn: psycopg.Connection,
+) -> None:
+    events = [
+        DockEvent(
+            event_id="E-4001",
+            station_id="ST-DOES-NOT-EXIST",
+            occurred_at=datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc),
+            bikes_available=5,
+            docks_free=10,
+        ),
+    ]
+
+    with pytest.raises(UnknownStation) as exc_info:
+        load(db_conn, events)
+
+    assert isinstance(
+        exc_info.value.__cause__,
+        psycopg.errors.ForeignKeyViolation,
+    )
