@@ -9,35 +9,36 @@ from pipeline.errors import UnknownStation
 from pipeline.model import DockEvent
 
 
+def _insert_event(
+    conn: psycopg.Connection,
+    event: DockEvent,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO dock_events (
+            event_id, station_id, occurred_at, bikes_available, docks_free
+        )
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (event_id) DO NOTHING
+        """,
+        (
+            event.event_id,
+            event.station_id,
+            event.occurred_at,
+            event.bikes_available,
+            event.docks_free,
+        ),
+    )
+    return cursor.rowcount
+
+
 def load(conn: psycopg.Connection, events: Iterable[DockEvent]) -> int:
     """Insert `events`; return how many rows the database did not already have."""
     loaded = 0
 
     try:
         for event in events:
-            cursor = conn.execute(
-                """
-                INSERT INTO dock_events (
-                    event_id,
-                    station_id,
-                    occurred_at,
-                    bikes_available,
-                    docks_free
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (event_id) DO NOTHING
-                """,
-                (
-                    event.event_id,
-                    event.station_id,
-                    event.occurred_at,
-                    event.bikes_available,
-                    event.docks_free,
-                ),
-            )
-
-            loaded += cursor.rowcount
-
+            loaded += _insert_event(conn, event)
     except psycopg.errors.ForeignKeyViolation as exc:
         raise UnknownStation from exc
 

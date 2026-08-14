@@ -2,9 +2,28 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 
 from pipeline.errors import MalformedRow
 from pipeline.model import DockEvent, RawEvent
+
+
+def _parse_timestamp(raw: RawEvent) -> datetime:
+    if "occurred_at" not in raw:
+        raise MalformedRow("occurred_at is missing")
+    try:
+        return datetime.fromisoformat(raw["occurred_at"])
+    except ValueError as exc:
+        raise MalformedRow("occurred_at is not a timestamp") from exc
+
+
+def _parse_count(raw: RawEvent, field: str) -> int:
+    if field not in raw:
+        raise MalformedRow(f"{field} is missing")
+    value = cast(int, raw[field])
+    if value < 0:
+        raise MalformedRow(f"{field} cannot be negative")
+    return value
 
 
 def parse_event(raw: RawEvent) -> DockEvent:
@@ -12,30 +31,10 @@ def parse_event(raw: RawEvent) -> DockEvent:
     if "event_id" not in raw:
         raise MalformedRow("event_id is missing")
 
-    if "occurred_at" not in raw:
-        raise MalformedRow("occurred_at is missing")
-
-    try:
-        occurred_at = datetime.fromisoformat(raw["occurred_at"])
-    except ValueError as exc:
-        raise MalformedRow("occurred_at is not a timestamp") from exc
-
-    if "bikes_available" not in raw:
-        raise MalformedRow("bikes_available is missing")
-
-    if raw["bikes_available"] < 0:
-        raise MalformedRow("bikes_available cannot be negative")
-
-    if "docks_free" not in raw:
-        raise MalformedRow("docks_free is missing")
-
-    if raw["docks_free"] < 0:
-        raise MalformedRow("docks_free cannot be negative")
-
     return DockEvent(
         event_id=raw["event_id"],
         station_id=raw["station_id"],
-        occurred_at=occurred_at,
-        bikes_available=raw["bikes_available"],
-        docks_free=raw["docks_free"],
+        occurred_at=_parse_timestamp(raw),
+        bikes_available=_parse_count(raw, "bikes_available"),
+        docks_free=_parse_count(raw, "docks_free"),
     )
