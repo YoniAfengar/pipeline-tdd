@@ -36,6 +36,6 @@ them, say so — and say whether that worries you.
 
 | mutant | the test that killed it |
 |---|---|
-| `returns_batch_size` | |
-| `swallows_malformed` | |
-| `commits_per_row` | |
+| `returns_batch_size` | `test_run_is_idempotent` |
+| `swallows_malformed` | `test_run_counts_malformed_rows_as_rejected` |
+| `commits_per_row` | `test_unknown_station_rejects_entire_batch` |
