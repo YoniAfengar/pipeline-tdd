@@ -17,9 +17,11 @@ Rollback isolation cannot properly test code that commits its own transaction. O
 You could have put the `INSERT`s for `stations.csv` inside migration 1, and then the seed would need no
 fixture at all. Some teams do exactly that.
 
-- One concrete argument **for**:
-- One concrete argument **against**:
-- What I would choose for *this* table, and why:
+- One concrete argument **for**: Putting the station inserts in the migration guarantees that the reference data is created together with the schema, with no separate seed step.
+- One concrete argument **against**: It couples reference data to schema history, making changes to the station list require database migrations even when the schema itself has not changed.
+- What I would choose for *this* table, and why: I would keep `stations.csv` as a separate seed because the station list is reference data that can change independently of the database schema, and the same real file can be loaded by both production and the test suite.
+
+
 
 ## Task 7 — the mutants
 

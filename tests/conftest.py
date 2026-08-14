@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import os
 from collections.abc import Iterator
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -22,8 +24,32 @@ def postgres_url() -> Iterator[str]:
         yield url
 
 
+@pytest.fixture(scope="session")
+def seed_stations(postgres_url: str) -> None:
+    seed_path = Path("given/seed/stations.csv")
+
+    with seed_path.open(newline="") as seed_file:
+        reader = csv.DictReader(seed_file)
+
+        with psycopg.connect(postgres_url) as conn:
+            with conn.cursor() as cursor:
+                for row in reader:
+                    cursor.execute(
+                        """
+                        INSERT INTO stations (station_id, name)
+                        VALUES (%s, %s)
+                        """,
+                        (row["station_id"], row["name"]),
+                    )
+
+            conn.commit()
+
+
 @pytest.fixture
-def db_conn(postgres_url: str) -> Iterator[psycopg.Connection]:
+def db_conn(
+    postgres_url: str,
+    seed_stations: None,
+) -> Iterator[psycopg.Connection]:
     conn = psycopg.connect(postgres_url)
     conn.execute("BEGIN")
 

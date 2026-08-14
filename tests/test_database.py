@@ -61,3 +61,12 @@ def test_transaction_isolation_second(db_conn: psycopg.Connection) -> None:
         """,
         ("E-SAME", "ST-TEST", "2026-06-01T06:00:00+00:00", 5, 10),
     )
+
+
+def test_known_station_is_seeded(db_conn: psycopg.Connection) -> None:
+    row = db_conn.execute(
+        "SELECT name FROM stations WHERE station_id = %s",
+        ("ST-0007",),
+    ).fetchone()
+
+    assert row == ("Meridian Wharf",)
