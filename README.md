@@ -1,70 +1,137 @@
+<p align="center">
+  <img src="assets/hero.png" alt="Pipeline TDD" width="100%">
+</p>
+
 # Pipeline TDD
 
-![Pipeline TDD Hero](assets/hero.png)
+A Python dock-event ingestion pipeline that validates JSONL records, loads valid events into PostgreSQL, rejects malformed rows, and supports safe idempotent reruns — built entirely test-first against a real temporary database.
 
-A production-style data pipeline built test-first, with real PostgreSQL integration, transaction-aware test isolation, mutation testing, and strict source-size limits.
+<p>
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 16">
+  <img src="https://img.shields.io/badge/Testcontainers-PostgreSQL-2496ED?logo=docker&logoColor=white" alt="Testcontainers">
+  <img src="https://img.shields.io/badge/Pytest-23%20passed-0A9EDC?logo=pytest&logoColor=white" alt="23 tests passed">
+  <img src="https://img.shields.io/badge/Mutation%20Testing-3%2F3%20killed-success" alt="3/3 mutants killed">
+  <img src="https://img.shields.io/badge/MyPy-strict-success" alt="MyPy strict">
+</p>
 
-The project ingests dock-event JSONL files, validates and transforms each row, writes valid events to PostgreSQL, rejects malformed input safely, and guarantees idempotent reprocessing.
+## Overview
 
-The core goal was not only to make the pipeline work, but to build a test suite strong enough to prove that it works.
+Pipeline TDD processes one or more `.jsonl` dock-event files and loads valid station status events into PostgreSQL.
 
----
+For every input directory, the pipeline:
 
-## What This Project Demonstrates
+1. reads every `.jsonl` file
+2. parses and validates each event
+3. rejects malformed rows without stopping the run
+4. inserts valid events into PostgreSQL
+5. ignores duplicate `event_id` values safely
+6. returns a structured `Report` containing rows read, loaded, and rejected
 
-- Test-Driven Development using a real RED → GREEN → REFACTOR workflow
-- Pure transformation logic tested independently from infrastructure
-- PostgreSQL integration using Testcontainers
-- Real Alembic migrations applied inside the test environment
-- Transaction rollback isolation for database tests
-- TRUNCATE-based isolation where committed transactions make rollback insufficient
-- Database-enforced foreign key integrity
-- Idempotent event loading
-- Malformed-row handling without failing the whole pipeline
-- Mutation testing to verify test-suite quality
-- Source-size enforcement to keep functions focused and maintainable
+The project was built with a strict RED → GREEN → REFACTOR workflow. Its main focus is not only pipeline correctness, but proving that the test suite can detect realistic implementation bugs.
 
----
+## Architecture
 
-## Pipeline Flow
+```mermaid
+flowchart LR
+    A[JSONL drop files] --> B[run]
+    B --> C[parse_event]
+    C --> D{Valid event?}
 
-```text
-JSONL drop files
-       │
-       ▼
-     run()
-       │
-       ├── reads every *.jsonl file
-       │
-       ▼
- parse_event()
-       │
-       ├── validates required fields
-       ├── parses timestamps
-       └── rejects malformed rows
-       │
-       ▼
-     load()
-       │
-       ├── inserts valid events
-       ├── ignores duplicate event_ids
-       ├── relies on PostgreSQL foreign keys
-       └── leaves transaction ownership to the caller
-       │
-       ▼
-   PostgreSQL
-       │
-       ▼
-Report(read, loaded, rejected)
+    D -->|Yes| E[load]
+    E --> F[(PostgreSQL)]
+
+    D -->|No| G[Rejected count]
+
+    H[Alembic migrations] --> F
+    I[stations.csv reference data] --> F
+
+    E --> J[Report]
+    G --> J
 ```
 
----
+## Core Features
 
-## Test-Driven Development
+- JSONL dock-event ingestion
+- Pure record parsing and validation
+- PostgreSQL persistence with Psycopg
+- Idempotent loading with `ON CONFLICT DO NOTHING`
+- Database-enforced station integrity
+- Malformed-row rejection without terminating the run
+- Structured `Report(read, loaded, rejected)` results
+- Real Alembic migrations inside the test environment
+- PostgreSQL integration tests with Testcontainers
+- Transaction rollback isolation for loader/database tests
+- TRUNCATE isolation for committed end-to-end pipeline runs
+- Mutation testing against deliberately broken implementations
+- Source-size gate for focused functions
+- Strict static type checking with MyPy
 
-The implementation was built incrementally from behavior specifications.
+## Tech Stack
 
-For each new behavior:
+| Category | Technology |
+|---|---|
+| Language | Python 3.11+ |
+| Database | PostgreSQL 16 |
+| Database driver | Psycopg 3 |
+| Migrations | Alembic |
+| Integration testing | Testcontainers |
+| Testing | Pytest |
+| Type checking | MyPy |
+| Dependency management | uv |
+| Containers | Docker |
+| Version control | Git / GitHub |
+
+## Project Structure
+
+```text
+pipeline-tdd/
+├── alembic/
+│   ├── env.py
+│   └── versions/              # Database migrations
+│
+├── assets/
+│   ├── hero.png
+│   └── screenshots/
+│       ├── mutation-testing.png
+│       └── test-suite.png
+│
+├── given/
+│   ├── drops/                 # Example JSONL input
+│   ├── mutants/               # Deliberately broken implementations
+│   └── seed/
+│       └── stations.csv       # Reference station data
+│
+├── src/
+│   └── pipeline/
+│       ├── errors.py          # Domain-specific exceptions
+│       ├── loader.py          # PostgreSQL loading
+│       ├── model.py           # DockEvent and Report models
+│       ├── runner.py          # Pipeline orchestration
+│       └── transform.py       # Parsing and validation
+│
+├── tests/
+│   ├── conftest.py            # PostgreSQL and isolation fixtures
+│   ├── test_database.py       # Schema and database behavior
+│   ├── test_loader.py         # Loader integration tests
+│   ├── test_pipeline.py       # End-to-end pipeline tests
+│   ├── test_size.py           # Source-size gate
+│   └── test_transform.py      # Pure transform tests
+│
+├── tools/
+│   └── check_loc.py
+│
+├── ANSWERS.md
+├── alembic.ini
+├── pyproject.toml
+└── uv.lock
+```
+
+## Testing Strategy
+
+This project was built test-first.
+
+For each behavior:
 
 ```text
 RED
@@ -81,54 +148,116 @@ REFACTOR
 Improve the design while keeping the suite green
 ```
 
-The Git history preserves this process, including separate failing-test and implementation commits.
+The Git history preserves this process with separate failing-test and implementation commits.
 
-Examples include:
+The test suite deliberately separates fast pure tests from database-backed integration tests.
 
-- missing or invalid event fields
-- duplicate event loading
-- unknown station handling
-- transaction ownership
-- malformed rows inside a complete pipeline run
-- repeated pipeline execution
+### Pure Transform Tests
 
----
+`parse_event()` is tested without PostgreSQL, Docker, or filesystem dependencies.
 
-## Test Suite
+The transform suite covers:
 
-The final suite contains tests across four layers:
+- valid events
+- missing `event_id`
+- missing `occurred_at`
+- invalid timestamps
+- missing counts
+- negative counts
+- zero as a valid count
+
+### PostgreSQL Integration Tests
+
+Database tests run against a temporary PostgreSQL 16 container created with Testcontainers.
+
+The session fixture:
+
+1. starts PostgreSQL
+2. applies the real Alembic migrations
+3. seeds `given/seed/stations.csv`
+4. exposes isolated database connections to the tests
+
+The database disappears when the test session ends.
+
+### Real Migration Verification
+
+The suite does not create test-only tables.
+
+Instead, it runs the actual migration chain used by the application and verifies that:
+
+- `stations` exists
+- `dock_events` exists
+- the station/time index from the final migration exists
+
+This helps ensure that tests and production-style schema creation follow the same path.
+
+## Test Isolation
+
+The suite uses two isolation strategies because the code under test has different transaction behavior.
+
+### Rollback Isolation
+
+Database and loader tests receive a connection inside a transaction.
+
+At the end of each test:
 
 ```text
-Transform tests
-    ↓
-Loader integration tests
-    ↓
-Database / migration tests
-    ↓
-End-to-end pipeline tests
+ROLLBACK
 ```
 
-It also includes a source-size gate that limits functions to 20 code lines and files to 250 code lines.
+removes all test-created rows.
 
-![Test Suite](assets/screenshots/test-suite.png)
+This keeps the tests fast and prevents data from leaking between them.
+
+### TRUNCATE Isolation
+
+`run()` opens its own database connection and commits.
+
+Once the code under test commits, an outer rollback fixture cannot undo those rows.
+
+End-to-end pipeline tests therefore use:
+
+```sql
+TRUNCATE TABLE dock_events;
+```
+
+before and after each test.
+
+This distinction is intentional and tests real transaction ownership rather than hiding it.
+
+## Test Suite Result
+
+<p align="center">
+  <img src="assets/screenshots/test-suite.png" alt="23 passing tests" width="900">
+</p>
+
+Current result:
 
 ```text
 23 passed
 ```
 
-The suite starts a real temporary PostgreSQL instance, applies the real Alembic migrations, seeds reference data, executes the tests, and removes the container afterward.
+The suite includes:
 
-No shared staging database is required.
-
----
+- transform tests
+- migration and schema tests
+- transaction isolation tests
+- reference-data tests
+- loader integration tests
+- end-to-end pipeline tests
+- source-size validation
 
 ## Mutation Testing
 
-A passing test suite is not enough if the tests would also pass against broken code.
+A green suite does not automatically mean the tests are strong.
 
-The project therefore runs the suite against three intentionally defective pipeline implementations.
+The project therefore runs the same suite against three deliberately broken pipeline implementations.
 
-![Mutation Testing](assets/screenshots/mutation-testing.png)
+<p align="center">
+  <img src="assets/screenshots/mutation-testing.png" alt="3 of 3 mutants killed" width="900">
+</p>
+
+Current result:
 
 ```text
 returns_batch_size   → killed
@@ -138,129 +267,23 @@ commits_per_row      → killed
 RESULT: 3/3 killed
 ```
 
-### What the Mutants Test
+### What the Mutants Prove
 
-**`returns_batch_size`**
+| Mutant | Bug | Test that detects it |
+|---|---|---|
+| `returns_batch_size` | Reports duplicates as newly inserted | `test_run_is_idempotent` |
+| `swallows_malformed` | Skips malformed rows without counting them | `test_run_counts_malformed_rows_as_rejected` |
+| `commits_per_row` | Commits partial batches before a later failure | `test_unknown_station_rejects_entire_batch` |
 
-Incorrectly reports every event as newly inserted, including duplicates.
+Mutation testing verifies that the suite checks observable behavior and transaction guarantees, not only the final contents of the database.
 
-Killed by:
+## Engineering Decisions
 
-```text
-test_run_is_idempotent
-```
+### Database-Enforced Station Integrity
 
-**`swallows_malformed`**
+Every event references a station through a PostgreSQL foreign key.
 
-Skips malformed rows without incrementing the rejected count.
-
-Killed by:
-
-```text
-test_run_counts_malformed_rows_as_rejected
-```
-
-**`commits_per_row`**
-
-Commits events individually, allowing part of a rejected batch to remain in the database.
-
-Killed by:
-
-```text
-test_unknown_station_rejects_entire_batch
-```
-
-This verifies not only final database state, but also externally observable pipeline behavior and transaction guarantees.
-
----
-
-## Database Testing Strategy
-
-### PostgreSQL with Testcontainers
-
-The test suite starts a temporary:
-
-```text
-postgres:16-alpine
-```
-
-container for the entire test session.
-
-The database does not exist before the suite begins and is discarded when the suite ends.
-
-### Real Alembic Migrations
-
-The schema is created using the same migration path expected in production:
-
-```bash
-alembic upgrade head
-```
-
-The tests verify that:
-
-- `stations` exists
-- `dock_events` exists
-- the revision-3 station/time index exists
-
-This ensures the tests do not silently use a schema that differs from production.
-
----
-
-## Test Isolation
-
-Two different isolation strategies are used deliberately.
-
-### Rollback Isolation
-
-Most database tests receive a connection inside a transaction.
-
-After each test:
-
-```text
-ROLLBACK
-```
-
-removes all test-created rows.
-
-This is fast and avoids repeated cleanup.
-
-### TRUNCATE Isolation
-
-The end-to-end `run()` function opens its own connection and commits.
-
-Once code under test commits, an outer fixture cannot undo those changes with rollback.
-
-Pipeline tests therefore use:
-
-```text
-TRUNCATE dock_events
-```
-
-before and after each test.
-
-This distinction reflects real transaction behavior rather than hiding it from the suite.
-
----
-
-## Reference Data
-
-Station data comes from:
-
-```text
-given/seed/stations.csv
-```
-
-It is loaded once per test session after the migrations and committed independently from test-generated data.
-
-This keeps reference data separate from per-test data and allows the same station file to represent the environment used by both production-style code and tests.
-
----
-
-## Data Integrity
-
-Unknown stations are rejected by PostgreSQL itself through a foreign key.
-
-The loader does not first query the station table and manually validate the ID.
+The loader does not perform a separate station lookup before inserting.
 
 Instead:
 
@@ -274,129 +297,98 @@ ForeignKeyViolation
 UnknownStation
 ```
 
-This avoids introducing a race between a separate validation query and the actual insert.
+This keeps PostgreSQL as the source of truth and avoids a race between a validation query and the actual insert.
 
----
+### Caller-Owned Transactions
 
-## Idempotency
+`load()` never commits.
 
-Events use `event_id` as their unique identifier.
+The caller owns the transaction boundary.
 
-Loading an existing event again uses:
+This allows a batch containing an unknown station to fail atomically:
+
+```text
+event 1 inserted
+event 2 inserted
+event 3 fails FK check
+        ↓
+entire transaction rolled back
+```
+
+The end-to-end `run()` function is responsible for committing a successful batch.
+
+### Idempotent Reruns
+
+The database loader uses:
 
 ```sql
 ON CONFLICT (event_id) DO NOTHING
 ```
 
-The loader reports the number of rows actually inserted.
+Reprocessing the same input does not duplicate rows.
 
-Therefore:
+The loader also reports the number of rows actually inserted, so a second run returns:
 
 ```text
-First run
-loaded = N
-
-Second run over the same files
 loaded = 0
 ```
 
-while the database remains unchanged.
+### Reference Data
 
----
-
-## Malformed Rows
-
-Malformed rows do not terminate the entire pipeline.
-
-Examples include:
-
-- missing `event_id`
-- missing `occurred_at`
-- invalid timestamps
-- missing count fields
-- negative bike or dock counts
-
-A malformed event contributes to `rejected`, while valid rows in the same drop continue through the pipeline.
-
-Zero is treated as a valid count.
-
----
-
-## Project Structure
+Station data is loaded from:
 
 ```text
-pipeline-tdd/
-├── alembic/
-│   ├── env.py
-│   └── versions/
-│
-├── assets/
-│   ├── hero.png
-│   └── screenshots/
-│       ├── mutation-testing.png
-│       └── test-suite.png
-│
-├── given/
-│   ├── drops/
-│   ├── mutants/
-│   └── seed/
-│       └── stations.csv
-│
-├── src/
-│   └── pipeline/
-│       ├── errors.py
-│       ├── loader.py
-│       ├── model.py
-│       ├── runner.py
-│       └── transform.py
-│
-├── tests/
-│   ├── conftest.py
-│   ├── test_database.py
-│   ├── test_loader.py
-│   ├── test_pipeline.py
-│   ├── test_size.py
-│   └── test_transform.py
-│
-├── tools/
-│   └── check_loc.py
-│
-├── ANSWERS.md
-├── alembic.ini
-├── pyproject.toml
-└── uv.lock
+given/seed/stations.csv
 ```
 
----
+once per test session after migrations complete.
 
-## Tech Stack
+Reference data is committed independently from per-test event data, allowing rollback-based tests to run on top of a stable station dataset.
 
-- Python
-- Pytest
-- PostgreSQL
-- Psycopg
-- Testcontainers
-- Docker
-- Alembic
-- Mypy
-- uv
+### Malformed Row Handling
+
+Malformed events do not terminate the complete ingestion run.
+
+They increment the `rejected` count while valid events from the same input continue through the pipeline.
+
+Examples of rejected events include:
+
+- missing identifiers
+- missing timestamps
+- invalid timestamps
+- missing availability counts
+- negative availability counts
+
+Zero remains a valid value.
+
+### Source Size Gate
+
+The project includes an automated size check:
+
+- functions: maximum 20 code lines
+- source files: maximum 250 code lines
+
+The gate forced orchestration, transformation, and database responsibilities into smaller focused functions while preserving behavior through the existing test suite.
+
+## Getting Started
+
+### Prerequisites
+
+Install:
+
 - Git
-- GitHub
-
----
-
-## Running the Project
-
-### Requirements
-
-You need:
-
+- Docker Desktop
 - Python 3.11+
-- Docker
 - uv
-- Git
 
-Docker must be running because the integration tests create a temporary PostgreSQL container.
+Docker must be running because the integration tests start a temporary PostgreSQL container.
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/YoniAfengar/pipeline-tdd.git
+cd pipeline-tdd
+```
 
 ### Install Dependencies
 
@@ -404,7 +396,9 @@ Docker must be running because the integration tests create a temporary PostgreS
 uv sync
 ```
 
-### Run the Full Test Suite
+## Running the Tests
+
+Run the full suite:
 
 ```bash
 uv run pytest
@@ -416,7 +410,7 @@ Expected result:
 23 passed
 ```
 
-### Run Mutation Testing
+Run mutation testing:
 
 ```bash
 uv run python -m given.mutants
@@ -428,32 +422,34 @@ Expected result:
 RESULT: 3/3 killed
 ```
 
-### Run Type Checking
+Run strict static type checking:
 
 ```bash
 uv run mypy src/
 ```
 
----
+## Additional Engineering Notes
 
-## Engineering Decisions
+[`ANSWERS.md`](ANSWERS.md) contains deeper discussion of several testing and database design trade-offs, including:
 
-Several design decisions from the project are documented in more detail in [`ANSWERS.md`](ANSWERS.md), including:
-
-- rollback isolation vs. TRUNCATE
-- reference data in migrations vs. seed fixtures
-- the trade-off introduced by testing exception chains
-- which tests killed each mutation
-
----
+- rollback isolation vs. TRUNCATE cleanup
+- reference data inside migrations vs. separate seed fixtures
+- coupling introduced by exception-chain assertions
+- the tests responsible for killing each mutant
 
 ## Key Takeaway
 
-The most important outcome of this project is not simply that the pipeline passes its tests.
+This project treats the test suite as part of the system design.
 
-It is that the tests were designed from the required behavior first, then challenged against deliberately broken implementations.
+The pipeline is tested against:
 
-That makes the suite part of the system's design rather than an after-the-fact verification layer.
+- pure transformation behavior
+- a real PostgreSQL database
+- real Alembic migrations
+- transaction boundaries
+- duplicate inputs
+- malformed data
+- deliberately broken implementations
 
 ```text
 23 passing tests
@@ -462,6 +458,13 @@ Real PostgreSQL
 Real migrations
 Isolated test runs
 Idempotent loading
+Strict MyPy
 ```
 
 **A pipeline you can trust on a Friday.**
+
+## Author
+
+**Yonatan Afengar**
+
+Data Engineer focused on Python, SQL, PostgreSQL, Docker, reliable data pipelines, and production-oriented testing.
