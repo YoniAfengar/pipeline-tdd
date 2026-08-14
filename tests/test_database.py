@@ -1,4 +1,5 @@
 import psycopg
+import pytest
 
 
 def test_migrations_build_schema(postgres_url: str) -> None:
@@ -70,3 +71,28 @@ def test_known_station_is_seeded(db_conn: psycopg.Connection) -> None:
     ).fetchone()
 
     assert row == ("Meridian Wharf",)
+
+
+def test_database_rejects_unknown_station(
+    db_conn: psycopg.Connection,
+) -> None:
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        db_conn.execute(
+            """
+            INSERT INTO dock_events (
+                event_id,
+                station_id,
+                occurred_at,
+                bikes_available,
+                docks_free
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                "E-UNKNOWN-STATION",
+                "ST-DOES-NOT-EXIST",
+                "2026-06-01T06:00:00+00:00",
+                5,
+                10,
+            ),
+        )

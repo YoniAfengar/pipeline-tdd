@@ -12,6 +12,8 @@ actually happened.)
 
 Rollback isolation cannot properly test code that commits its own transaction. Once the code under test commits, the fixture’s rollback can no longer undo those changes. The committed rows can leak into the next test and break test isolation. A TRUNCATE-based cleanup can remove those rows even after they have been committed.
 
+In Task 6, we proved this concretely by opening a second connection after `load` and asserting that it could not see the uncommitted row.
+
 ## Task 5 — reference data in the migration, or in a fixture?
 
 You could have put the `INSERT`s for `stations.csv` inside migration 1, and then the seed would need no
@@ -21,6 +23,10 @@ fixture at all. Some teams do exactly that.
 - One concrete argument **against**: It couples reference data to schema history, making changes to the station list require database migrations even when the schema itself has not changed.
 - What I would choose for *this* table, and why: I would keep `stations.csv` as a separate seed because the station list is reference data that can change independently of the database schema, and the same real file can be loaded by both production and the test suite.
 
+
+## Task 6 — what the exception-chain test costs
+
+The exception-chain test couples `tests/test_loader.py` to psycopg because it asserts that `UnknownStation.__cause__` is specifically a `psycopg.errors.ForeignKeyViolation`. That makes the test more precise, but changing database drivers would require changing the test as well. It still does not cover the race where another transaction deletes a station after a separate station check but before the insert. The test proves that our current loader lets PostgreSQL enforce the constraint, but it does not simulate every possible concurrent interleaving.
 
 
 ## Task 7 — the mutants
