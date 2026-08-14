@@ -13,7 +13,7 @@ def load(conn: psycopg.Connection, events: Iterable[DockEvent]) -> int:
     loaded = 0
 
     for event in events:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO dock_events (
                 event_id,
@@ -23,6 +23,7 @@ def load(conn: psycopg.Connection, events: Iterable[DockEvent]) -> int:
                 docks_free
             )
             VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (event_id) DO NOTHING
             """,
             (
                 event.event_id,
@@ -32,6 +33,7 @@ def load(conn: psycopg.Connection, events: Iterable[DockEvent]) -> int:
                 event.docks_free,
             ),
         )
-        loaded += 1
+
+        loaded += cursor.rowcount
 
     return loaded
