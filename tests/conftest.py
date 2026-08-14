@@ -58,3 +58,20 @@ def db_conn(
     finally:
         conn.rollback()
         conn.close()
+
+
+@pytest.fixture
+def pipeline_db_url(
+    postgres_url: str,
+    seed_stations: None,
+) -> Iterator[str]:
+    with psycopg.connect(postgres_url) as conn:
+        conn.execute("TRUNCATE TABLE dock_events")
+        conn.commit()
+
+    try:
+        yield postgres_url
+    finally:
+        with psycopg.connect(postgres_url) as conn:
+            conn.execute("TRUNCATE TABLE dock_events")
+            conn.commit()

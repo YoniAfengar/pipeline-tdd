@@ -1,0 +1,50 @@
+import json
+
+import psycopg
+
+from pipeline.model import Report
+from pipeline.runner import run
+
+
+def test_run_loads_valid_rows(
+    tmp_path,
+    pipeline_db_url: str,
+) -> None:
+    drop_file = tmp_path / "events.jsonl"
+
+    rows = [
+        {
+            "event_id": "E-6001",
+            "station_id": "ST-0007",
+            "occurred_at": "2026-06-01T11:00:00+00:00",
+            "bikes_available": 5,
+            "docks_free": 10,
+        },
+        {
+            "event_id": "E-6002",
+            "station_id": "ST-0031",
+            "occurred_at": "2026-06-01T11:05:00+00:00",
+            "bikes_available": 7,
+            "docks_free": 8,
+        },
+    ]
+
+    with drop_file.open("w") as file:
+        for row in rows:
+            file.write(json.dumps(row) + "\n")
+
+    report = run(tmp_path, pipeline_db_url)
+
+    with psycopg.connect(pipeline_db_url) as conn:
+        loaded_rows = conn.execute(
+            """
+            SELECT event_id
+            FROM dock_events
+            WHERE event_id IN (%s, %s)
+            ORDER BY event_id
+            """,
+            ("E-6001", "E-6002"),
+        ).fetchall()
+
+    assert report == Report(read=2, loaded=2, rejected=0)
+    assert loaded_rows == [("E-6001",), ("E-6002",)]
